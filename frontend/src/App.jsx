@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft, ArrowRight, BadgeCheck, Building2, Check, Download, Eye, File,
   FileSpreadsheet, FileText, FolderOpen, Languages, ListChecks, LockKeyhole,
-  Mail, RefreshCw, Play, ScanLine, Send, ShieldCheck, Sparkles, UploadCloud,
+  Mail, RefreshCw, Play, ScanLine, Search, LogOut, FileDown, Send, ShieldCheck, Sparkles, UploadCloud,
   UserRound, X
 } from 'lucide-react'
 import './App.css'
@@ -63,6 +63,7 @@ const COPY = {
     completed: '已完成',
     processing: '处理中',
     waitingQuote: '等待报价',
+    searchOrders:'搜索订单号、客户、邮箱或公司', allStatuses:'全部状态', exportOrders:'导出订单 CSV', logout:'退出后台', noMatchOrders:'没有符合条件的订单。',
     brandSubtitle: '专业文档服务', workflowTitle:'订单流程', realData:'真实数据', customerUploads:'客户上传文件',
     uploadStep:'上传', filesSaved:'文件已保存', customerStep:'客户', contactDetails:'联系方式', orderStep:'订单', sqliteRecord:'SQLite 记录',
     adminStep:'后台', reviewQuote:'审核与报价', orderCreated:'订单创建成功', visibleDashboard:'可在后台查看', ready:'已就绪',
@@ -140,6 +141,7 @@ const COPY = {
     completed: 'Completed',
     processing: 'Processing',
     waitingQuote: 'Waiting quote',
+    searchOrders:'Search order, customer, email or company', allStatuses:'All statuses', exportOrders:'Export orders CSV', logout:'Sign out', noMatchOrders:'No matching orders.',
     brandSubtitle:'Professional Document Services', workflowTitle:'Order workflow', realData:'Real data', customerUploads:'Customer uploads files', uploadStep:'Upload', filesSaved:'Files saved', customerStep:'Customer', contactDetails:'Contact details', orderStep:'Order', sqliteRecord:'SQLite record', adminStep:'Admin', reviewQuote:'Review & quote', orderCreated:'Order created successfully', visibleDashboard:'Visible in the admin dashboard', ready:'Ready',
     proofUploadTitle:'Real file upload', proofUploadDesc:'Multipart upload to FastAPI', proofOrdersTitle:'SQLite orders', proofOrdersDesc:'Persistent local order database', proofAdminTitle:'Admin dashboard', proofAdminDesc:'Review customers, services and files', proofDownloadTitle:'File download', proofDownloadDesc:'Download original customer uploads',
     servicesLabel:'Services', servicesTitle:'One order can include multiple services', servicesDesc:'Select exactly what the customer needs before submission.', businessLabel:'Business workflow', businessTitle:'A complete path from customer upload to your dashboard', businessSteps:[['Upload','Customer sends one or multiple files.'],['Details','Name, email, company and deadline.'],['Services','OCR, translation, conversion or review.'],['Submit','Files and order are saved by FastAPI.'],['Admin','You review and download customer files.']],
@@ -207,6 +209,7 @@ const COPY = {
     completed: 'Đã hoàn thành',
     processing: 'Đang xử lý',
     waitingQuote: 'Chờ báo giá',
+    searchOrders:'Tìm mã đơn, khách hàng, email hoặc công ty', allStatuses:'Tất cả trạng thái', exportOrders:'Xuất CSV đơn hàng', logout:'Đăng xuất', noMatchOrders:'Không có đơn hàng phù hợp.',
     brandSubtitle:'Dịch vụ tài liệu chuyên nghiệp', workflowTitle:'Quy trình đơn hàng', realData:'Dữ liệu thật', customerUploads:'Khách hàng tải tệp lên', uploadStep:'Tải lên', filesSaved:'Đã lưu tệp', customerStep:'Khách hàng', contactDetails:'Thông tin liên hệ', orderStep:'Đơn hàng', sqliteRecord:'Bản ghi SQLite', adminStep:'Quản trị', reviewQuote:'Kiểm tra và báo giá', orderCreated:'Đã tạo đơn hàng thành công', visibleDashboard:'Hiển thị trong trang quản trị', ready:'Sẵn sàng',
     proofUploadTitle:'Tải tệp thật', proofUploadDesc:'Tải nhiều tệp qua FastAPI', proofOrdersTitle:'Đơn hàng SQLite', proofOrdersDesc:'Cơ sở dữ liệu đơn hàng cục bộ lâu dài', proofAdminTitle:'Trang quản trị', proofAdminDesc:'Xem khách hàng, dịch vụ và tệp', proofDownloadTitle:'Tải tệp xuống', proofDownloadDesc:'Tải tệp gốc khách hàng đã gửi',
     servicesLabel:'Dịch vụ', servicesTitle:'Một đơn hàng có thể gồm nhiều dịch vụ', servicesDesc:'Chọn chính xác nội dung khách hàng cần trước khi gửi.', businessLabel:'Quy trình nghiệp vụ', businessTitle:'Quy trình hoàn chỉnh từ lúc khách tải tệp đến trang quản trị', businessSteps:[['Tải lên','Khách hàng gửi một hoặc nhiều tệp.'],['Thông tin','Họ tên, email, công ty và thời hạn.'],['Dịch vụ','OCR, dịch thuật, chuyển đổi hoặc kiểm tra.'],['Gửi đơn','Tệp và đơn hàng được FastAPI lưu lại.'],['Quản trị','Bạn xem và tải tệp của khách hàng.']],
@@ -429,11 +432,13 @@ function UploadWizard({ t, openAdmin }) {
   </div>
 }
 
-function AdminDashboard({ t, adminKey }) {
+function AdminDashboard({ t, adminKey, onLogout }) {
   const statuses = Object.entries(t.statusLabels)
   const [orders, setOrders] = useState([])
   const [counts, setCounts] = useState({})
   const [loading, setLoading] = useState(true)
+  const [searchText, setSearchText] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [selected, setSelected] = useState(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -619,11 +624,36 @@ function AdminDashboard({ t, adminKey }) {
     } catch(err) { setError(err.message) }
   }
 
+  const filteredOrders = useMemo(() => {
+    const term = searchText.trim().toLowerCase()
+    return orders.filter(order => {
+      const statusOk = statusFilter === 'all' || order.status === statusFilter
+      if (!statusOk) return false
+      if (!term) return true
+      return [order.order_number, order.name, order.email, order.company, order.whatsapp, order.country]
+        .filter(Boolean).some(value => String(value).toLowerCase().includes(term))
+    })
+  }, [orders, searchText, statusFilter])
+
+  const exportOrdersCsv = () => {
+    const headers = ['order_number','customer','email','company','status','quote_amount','currency','created_at','services']
+    const escape = value => `"${String(value ?? '').replaceAll('"','""')}"`
+    const rows = filteredOrders.map(order => [
+      order.order_number, order.name, order.email, order.company, statusLabel(t, order.status),
+      order.quote_amount ?? '', order.quote_currency || 'USD', order.created_at,
+      order.services.map(id => requestLabel(t,id)).join(' | ')
+    ].map(escape).join(','))
+    const csv = '\ufeff' + [headers.join(','), ...rows].join('\r\n')
+    const href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}))
+    const a = document.createElement('a'); a.href = href; a.download = `document-ai-orders-${new Date().toISOString().slice(0,10)}.csv`; a.click()
+    URL.revokeObjectURL(href)
+  }
+
   return (
     <main className="admin-page">
       <div className="admin-heading">
         <div><span className="section-label">Admin V10.2 AI Providers</span><h1>{t.adminTitle}</h1></div>
-        <button onClick={() => loadOrders()}><RefreshCw size={15}/>{t.refresh}</button>
+        <div className="admin-heading-actions"><button onClick={() => loadOrders()}><RefreshCw size={15}/>{t.refresh}</button><button onClick={onLogout}><LogOut size={15}/>{t.logout}</button></div>
       </div>
 
       <div className="admin-stats">
@@ -631,6 +661,12 @@ function AdminDashboard({ t, adminKey }) {
         <div><span>{t.waitingQuote}</span><strong>{counts.waiting_quote || 0}</strong></div>
         <div><span>{t.processing}</span><strong>{(counts.processing || 0) + (counts.quality_review || 0)}</strong></div>
         <div><span>{t.completed}</span><strong>{counts.completed || 0}</strong></div>
+      </div>
+
+      <div className="order-toolbar">
+        <label className="order-search"><Search size={17}/><input value={searchText} onChange={e=>setSearchText(e.target.value)} placeholder={t.searchOrders}/></label>
+        <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="all">{t.allStatuses}</option>{statuses.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select>
+        <button onClick={exportOrdersCsv} disabled={filteredOrders.length===0}><FileDown size={16}/>{t.exportOrders}</button>
       </div>
 
       <section className="ai-settings-card">
@@ -647,10 +683,11 @@ function AdminDashboard({ t, adminKey }) {
       {error && <div className="error-box">{error}</div>}
       {loading ? <div className="loading-card"><RefreshCw className="spin"/> {t.loadingOrders}</div> :
         orders.length === 0 ? <div className="empty-state"><FolderOpen size={34}/><p>{t.emptyOrders}</p></div> :
+        filteredOrders.length === 0 ? <div className="empty-state"><Search size={34}/><p>{t.noMatchOrders}</p></div> :
         <div className="orders-layout">
           <div className="orders-table">
             <div className="orders-row orders-head"><span>{t.order}</span><span>{t.customer}</span><span>{t.services}</span><span>{t.created}</span><span>{t.status}</span></div>
-            {orders.map(order => <button className={selected?.id === order.id ? 'orders-row selected' : 'orders-row'} key={order.id} onClick={() => chooseOrder(order)}>
+            {filteredOrders.map(order => <button className={selected?.id === order.id ? 'orders-row selected' : 'orders-row'} key={order.id} onClick={() => chooseOrder(order)}>
               <span><b>{order.order_number}</b><small>{order.file_count} {t.originalFiles} · {order.output_count} {t.deliveredFiles}</small></span>
               <span><b>{order.name}</b><small>{order.email}</small></span>
               <span>{order.services.map(x => requestLabel(t,x)).join(', ')}</span>
@@ -757,7 +794,7 @@ function App() {
         </div>
       </header>
 
-      {adminMode ? (adminKey ? <AdminDashboard t={t} adminKey={adminKey}/> : <AdminLogin t={t} onBack={()=>setAdminMode(false)} onLogin={(key)=>{sessionStorage.setItem('document_ai_admin_key',key);setAdminKey(key)}}/>) : <>
+      {adminMode ? (adminKey ? <AdminDashboard t={t} adminKey={adminKey} onLogout={()=>{sessionStorage.removeItem('document_ai_admin_key');setAdminKey('')}}/> : <AdminLogin t={t} onBack={()=>setAdminMode(false)} onLogin={(key)=>{sessionStorage.setItem('document_ai_admin_key',key);setAdminKey(key)}}/>) : <>
         <main>
           <section className="hero">
             <div className="hero-copy">

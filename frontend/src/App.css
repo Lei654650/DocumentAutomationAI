@@ -45,3 +45,12 @@ footer{width:min(1320px,calc(100% - 40px));margin:0 auto 28px;padding:20px 0;dis
 .job-progress{height:8px;background:#e9eef9;border-radius:99px;overflow:hidden;margin:10px 0}.job-progress i{display:block;height:100%;background:#2f5bff;transition:width .3s ease}
 .processing-log{max-height:220px;overflow:auto;border:1px solid #e6ebf3;border-radius:10px;background:#f8fafc}.processing-log>div{display:grid;grid-template-columns:70px 85px 1fr;gap:8px;padding:8px 10px;border-bottom:1px solid #edf1f7;font-size:11px}.processing-log time{color:#667085}.processing-log b{color:#2445a7}.processing-log span{word-break:break-word}
 @media(max-width:1000px){.ai-settings-grid{grid-template-columns:1fr 1fr}}@media(max-width:640px){.ai-settings-grid{grid-template-columns:1fr}.ai-settings-actions{align-items:flex-start;flex-direction:column}}
+
+/* V8 commercial order operations */
+.admin-heading-actions{display:flex;gap:9px;flex-wrap:wrap}.admin-heading-actions button{display:flex;align-items:center;gap:6px}
+.order-toolbar{display:grid;grid-template-columns:minmax(260px,1fr) 190px auto;gap:10px;margin:14px 0;padding:12px;border:1px solid #e1e7f0;border-radius:14px;background:#fff;box-shadow:0 10px 28px rgba(30,64,175,.05)}
+.order-toolbar select,.order-toolbar button,.order-search{min-height:42px;border:1px solid #dbe3ef;border-radius:10px;background:#fff;color:#26344d;font:inherit}
+.order-search{display:flex;align-items:center;gap:8px;padding:0 12px}.order-search svg{color:#667085;flex:0 0 auto}.order-search input{width:100%;border:0;outline:0;background:transparent;font:inherit}
+.order-toolbar select{padding:0 11px}.order-toolbar button{display:flex;align-items:center;justify-content:center;gap:7px;padding:0 14px;background:#eef3ff;color:#2453ff;font-weight:800;cursor:pointer}.order-toolbar button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:820px){.order-toolbar{grid-template-columns:1fr 1fr}.order-search{grid-column:1/-1}}
+@media(max-width:560px){.order-toolbar{grid-template-columns:1fr}.order-search{grid-column:auto}}
